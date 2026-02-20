@@ -341,7 +341,9 @@ impl ArchiveExtractor {
     }
 
     pub fn with_format_from_filename(mut self) -> Result<Self> {
-        let filename = self.source_filename.as_deref()
+        let filename = self
+            .source_filename
+            .as_deref()
             .ok_or(ArchiveError::UnknownFormat)?;
         self.format = Some(ArchiveFormat::from_filename(filename)?);
         Ok(self)
@@ -418,7 +420,11 @@ impl ArchiveExtractor {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn extract_with_format(&self, data: &[u8], format: ArchiveFormat) -> Result<Vec<ExtractedFile>> {
+    pub fn extract_with_format(
+        &self,
+        data: &[u8],
+        format: ArchiveFormat,
+    ) -> Result<Vec<ExtractedFile>> {
         match format {
             ArchiveFormat::Zip => self.extract_zip(data),
             ArchiveFormat::Tar => self.extract_tar(data),
@@ -793,7 +799,7 @@ impl ArchiveExtractor {
         let mut files = Vec::new();
         let mut total_size = 0usize;
 
-        while let Some(entry_result) = archive.next_entry(){
+        while let Some(entry_result) = archive.next_entry() {
             let mut entry = entry_result?;
             let path = String::from_utf8_lossy(entry.header().identifier()).to_string();
 
@@ -856,8 +862,7 @@ mod tests {
         encoder.write_all(b"hello").unwrap();
         let data = encoder.finish().unwrap();
 
-        let extractor = ArchiveExtractor::new()
-            .with_format(ArchiveFormat::Bz2);
+        let extractor = ArchiveExtractor::new().with_format(ArchiveFormat::Bz2);
 
         let files = extractor.extract(&data).unwrap();
         assert_eq!(files.len(), 1);
@@ -896,8 +901,7 @@ mod tests {
 
     #[test]
     fn test_source_filename_derives_output_path() {
-        let extractor = ArchiveExtractor::new()
-            .with_source_filename("report.txt.bz2");
+        let extractor = ArchiveExtractor::new().with_source_filename("report.txt.bz2");
 
         assert_eq!(
             extractor.derive_single_file_path(ArchiveFormat::Bz2),
@@ -916,8 +920,7 @@ mod tests {
 
     #[test]
     fn test_derive_path_non_matching_extension() {
-        let extractor = ArchiveExtractor::new()
-            .with_source_filename("file.txt.gz");
+        let extractor = ArchiveExtractor::new().with_source_filename("file.txt.gz");
 
         // Asking for bz2 path but filename ends in .gz — no match
         assert_eq!(
@@ -944,8 +947,7 @@ mod tests {
 
     #[test]
     fn test_with_format_from_mime_unknown() {
-        let result = ArchiveExtractor::new()
-            .with_format_from_mime("text/plain");
+        let result = ArchiveExtractor::new().with_format_from_mime("text/plain");
         assert!(result.is_err());
     }
 
@@ -970,8 +972,8 @@ mod tests {
     #[cfg(feature = "detect-infer")]
     #[test]
     fn test_with_format_from_bytes_gz() {
-        use flate2::write::GzEncoder;
         use flate2::Compression;
+        use flate2::write::GzEncoder;
         let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
         std::io::Write::write_all(&mut encoder, b"hello").unwrap();
         let data = encoder.finish().unwrap();

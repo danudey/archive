@@ -139,11 +139,21 @@ fn test_all_tar_formats_produce_same_structure() {
     let tar_xz = read_test_archive("archive.tar.xz");
     let tar_zst = read_test_archive("archive.tar.zst");
 
-    let files_tar = extractor.extract_with_format(&tar, ArchiveFormat::Tar).unwrap();
-    let files_tar_gz = extractor.extract_with_format(&tar_gz, ArchiveFormat::TarGz).unwrap();
-    let files_tar_bz2 = extractor.extract_with_format(&tar_bz2, ArchiveFormat::TarBz2).unwrap();
-    let files_tar_xz = extractor.extract_with_format(&tar_xz, ArchiveFormat::TarXz).unwrap();
-    let files_tar_zst = extractor.extract_with_format(&tar_zst, ArchiveFormat::TarZst).unwrap();
+    let files_tar = extractor
+        .extract_with_format(&tar, ArchiveFormat::Tar)
+        .unwrap();
+    let files_tar_gz = extractor
+        .extract_with_format(&tar_gz, ArchiveFormat::TarGz)
+        .unwrap();
+    let files_tar_bz2 = extractor
+        .extract_with_format(&tar_bz2, ArchiveFormat::TarBz2)
+        .unwrap();
+    let files_tar_xz = extractor
+        .extract_with_format(&tar_xz, ArchiveFormat::TarXz)
+        .unwrap();
+    let files_tar_zst = extractor
+        .extract_with_format(&tar_zst, ArchiveFormat::TarZst)
+        .unwrap();
 
     // All should have the same number of files
     assert_eq!(files_tar.len(), files_tar_gz.len());

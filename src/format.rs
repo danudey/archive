@@ -291,9 +291,11 @@ impl ArchiveFormat {
     pub fn from_bytes(data: &[u8]) -> Result<Self, ArchiveError> {
         let cookie = magic::Cookie::open(magic::CookieFlags::MIME_TYPE)
             .map_err(|e| ArchiveError::InvalidArchive(format!("libmagic error: {e}")))?;
-        cookie.load::<&str>(&[])
+        cookie
+            .load::<&str>(&[])
             .map_err(|e| ArchiveError::InvalidArchive(format!("libmagic load error: {e}")))?;
-        let mime = cookie.buffer(data)
+        let mime = cookie
+            .buffer(data)
             .map_err(|e| ArchiveError::InvalidArchive(format!("libmagic buffer error: {e}")))?;
         Self::from_mime_str(&mime).map_err(|_| ArchiveError::UnknownFormat)
     }
@@ -411,42 +413,123 @@ mod tests {
 
     #[test]
     fn test_from_filename_all_extensions() {
-        assert_eq!(ArchiveFormat::from_filename("a.zip").unwrap(), ArchiveFormat::Zip);
-        assert_eq!(ArchiveFormat::from_filename("a.tar").unwrap(), ArchiveFormat::Tar);
-        assert_eq!(ArchiveFormat::from_filename("a.ar").unwrap(), ArchiveFormat::Ar);
-        assert_eq!(ArchiveFormat::from_filename("a.deb").unwrap(), ArchiveFormat::Deb);
-        assert_eq!(ArchiveFormat::from_filename("a.tar.gz").unwrap(), ArchiveFormat::TarGz);
-        assert_eq!(ArchiveFormat::from_filename("a.tgz").unwrap(), ArchiveFormat::TarGz);
-        assert_eq!(ArchiveFormat::from_filename("a.tar.bz2").unwrap(), ArchiveFormat::TarBz2);
-        assert_eq!(ArchiveFormat::from_filename("a.tbz2").unwrap(), ArchiveFormat::TarBz2);
-        assert_eq!(ArchiveFormat::from_filename("a.tar.xz").unwrap(), ArchiveFormat::TarXz);
-        assert_eq!(ArchiveFormat::from_filename("a.txz").unwrap(), ArchiveFormat::TarXz);
-        assert_eq!(ArchiveFormat::from_filename("a.tar.zst").unwrap(), ArchiveFormat::TarZst);
-        assert_eq!(ArchiveFormat::from_filename("a.tar.lz4").unwrap(), ArchiveFormat::TarLz4);
-        assert_eq!(ArchiveFormat::from_filename("a.gz").unwrap(), ArchiveFormat::Gz);
-        assert_eq!(ArchiveFormat::from_filename("a.bz2").unwrap(), ArchiveFormat::Bz2);
-        assert_eq!(ArchiveFormat::from_filename("a.xz").unwrap(), ArchiveFormat::Xz);
-        assert_eq!(ArchiveFormat::from_filename("a.lz4").unwrap(), ArchiveFormat::Lz4);
-        assert_eq!(ArchiveFormat::from_filename("a.zst").unwrap(), ArchiveFormat::Zst);
-        assert_eq!(ArchiveFormat::from_filename("a.7z").unwrap(), ArchiveFormat::SevenZ);
+        assert_eq!(
+            ArchiveFormat::from_filename("a.zip").unwrap(),
+            ArchiveFormat::Zip
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.tar").unwrap(),
+            ArchiveFormat::Tar
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.ar").unwrap(),
+            ArchiveFormat::Ar
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.deb").unwrap(),
+            ArchiveFormat::Deb
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.tar.gz").unwrap(),
+            ArchiveFormat::TarGz
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.tgz").unwrap(),
+            ArchiveFormat::TarGz
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.tar.bz2").unwrap(),
+            ArchiveFormat::TarBz2
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.tbz2").unwrap(),
+            ArchiveFormat::TarBz2
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.tar.xz").unwrap(),
+            ArchiveFormat::TarXz
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.txz").unwrap(),
+            ArchiveFormat::TarXz
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.tar.zst").unwrap(),
+            ArchiveFormat::TarZst
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.tar.lz4").unwrap(),
+            ArchiveFormat::TarLz4
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.gz").unwrap(),
+            ArchiveFormat::Gz
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.bz2").unwrap(),
+            ArchiveFormat::Bz2
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.xz").unwrap(),
+            ArchiveFormat::Xz
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.lz4").unwrap(),
+            ArchiveFormat::Lz4
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.zst").unwrap(),
+            ArchiveFormat::Zst
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("a.7z").unwrap(),
+            ArchiveFormat::SevenZ
+        );
     }
 
     #[test]
     fn test_from_filename_case_insensitive() {
-        assert_eq!(ArchiveFormat::from_filename("FILE.ZIP").unwrap(), ArchiveFormat::Zip);
-        assert_eq!(ArchiveFormat::from_filename("Archive.Tar.Gz").unwrap(), ArchiveFormat::TarGz);
-        assert_eq!(ArchiveFormat::from_filename("DATA.BZ2").unwrap(), ArchiveFormat::Bz2);
-        assert_eq!(ArchiveFormat::from_filename("backup.TAR.XZ").unwrap(), ArchiveFormat::TarXz);
+        assert_eq!(
+            ArchiveFormat::from_filename("FILE.ZIP").unwrap(),
+            ArchiveFormat::Zip
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("Archive.Tar.Gz").unwrap(),
+            ArchiveFormat::TarGz
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("DATA.BZ2").unwrap(),
+            ArchiveFormat::Bz2
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("backup.TAR.XZ").unwrap(),
+            ArchiveFormat::TarXz
+        );
     }
 
     #[test]
     fn test_from_filename_double_extensions() {
         // Double extensions should match before single
-        assert_eq!(ArchiveFormat::from_filename("foo.tar.gz").unwrap(), ArchiveFormat::TarGz);
-        assert_eq!(ArchiveFormat::from_filename("foo.tar.bz2").unwrap(), ArchiveFormat::TarBz2);
-        assert_eq!(ArchiveFormat::from_filename("foo.tar.xz").unwrap(), ArchiveFormat::TarXz);
-        assert_eq!(ArchiveFormat::from_filename("foo.tar.zst").unwrap(), ArchiveFormat::TarZst);
-        assert_eq!(ArchiveFormat::from_filename("foo.tar.lz4").unwrap(), ArchiveFormat::TarLz4);
+        assert_eq!(
+            ArchiveFormat::from_filename("foo.tar.gz").unwrap(),
+            ArchiveFormat::TarGz
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("foo.tar.bz2").unwrap(),
+            ArchiveFormat::TarBz2
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("foo.tar.xz").unwrap(),
+            ArchiveFormat::TarXz
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("foo.tar.zst").unwrap(),
+            ArchiveFormat::TarZst
+        );
+        assert_eq!(
+            ArchiveFormat::from_filename("foo.tar.lz4").unwrap(),
+            ArchiveFormat::TarLz4
+        );
     }
 
     #[test]
@@ -458,30 +541,78 @@ mod tests {
 
     #[test]
     fn test_from_mime_str_all_supported() {
-        assert_eq!(ArchiveFormat::from_mime_str("application/zip").unwrap(), ArchiveFormat::Zip);
-        assert_eq!(ArchiveFormat::from_mime_str("application/x-tar").unwrap(), ArchiveFormat::Tar);
-        assert_eq!(ArchiveFormat::from_mime_str("application/x-ar").unwrap(), ArchiveFormat::Ar);
-        assert_eq!(ArchiveFormat::from_mime_str("application/vnd.debian.binary-package").unwrap(), ArchiveFormat::Deb);
-        assert_eq!(ArchiveFormat::from_mime_str("application/gzip").unwrap(), ArchiveFormat::Gz);
-        assert_eq!(ArchiveFormat::from_mime_str("application/x-bzip2").unwrap(), ArchiveFormat::Bz2);
-        assert_eq!(ArchiveFormat::from_mime_str("application/x-xz").unwrap(), ArchiveFormat::Xz);
-        assert_eq!(ArchiveFormat::from_mime_str("application/x-lz4").unwrap(), ArchiveFormat::Lz4);
-        assert_eq!(ArchiveFormat::from_mime_str("application/zstd").unwrap(), ArchiveFormat::Zst);
-        assert_eq!(ArchiveFormat::from_mime_str("application/x-7z-compressed").unwrap(), ArchiveFormat::SevenZ);
+        assert_eq!(
+            ArchiveFormat::from_mime_str("application/zip").unwrap(),
+            ArchiveFormat::Zip
+        );
+        assert_eq!(
+            ArchiveFormat::from_mime_str("application/x-tar").unwrap(),
+            ArchiveFormat::Tar
+        );
+        assert_eq!(
+            ArchiveFormat::from_mime_str("application/x-ar").unwrap(),
+            ArchiveFormat::Ar
+        );
+        assert_eq!(
+            ArchiveFormat::from_mime_str("application/vnd.debian.binary-package").unwrap(),
+            ArchiveFormat::Deb
+        );
+        assert_eq!(
+            ArchiveFormat::from_mime_str("application/gzip").unwrap(),
+            ArchiveFormat::Gz
+        );
+        assert_eq!(
+            ArchiveFormat::from_mime_str("application/x-bzip2").unwrap(),
+            ArchiveFormat::Bz2
+        );
+        assert_eq!(
+            ArchiveFormat::from_mime_str("application/x-xz").unwrap(),
+            ArchiveFormat::Xz
+        );
+        assert_eq!(
+            ArchiveFormat::from_mime_str("application/x-lz4").unwrap(),
+            ArchiveFormat::Lz4
+        );
+        assert_eq!(
+            ArchiveFormat::from_mime_str("application/zstd").unwrap(),
+            ArchiveFormat::Zst
+        );
+        assert_eq!(
+            ArchiveFormat::from_mime_str("application/x-7z-compressed").unwrap(),
+            ArchiveFormat::SevenZ
+        );
     }
 
     #[test]
     fn test_from_mime_str_case_insensitive() {
-        assert_eq!(ArchiveFormat::from_mime_str("APPLICATION/ZIP").unwrap(), ArchiveFormat::Zip);
-        assert_eq!(ArchiveFormat::from_mime_str("Application/Gzip").unwrap(), ArchiveFormat::Gz);
-        assert_eq!(ArchiveFormat::from_mime_str("APPLICATION/X-TAR").unwrap(), ArchiveFormat::Tar);
+        assert_eq!(
+            ArchiveFormat::from_mime_str("APPLICATION/ZIP").unwrap(),
+            ArchiveFormat::Zip
+        );
+        assert_eq!(
+            ArchiveFormat::from_mime_str("Application/Gzip").unwrap(),
+            ArchiveFormat::Gz
+        );
+        assert_eq!(
+            ArchiveFormat::from_mime_str("APPLICATION/X-TAR").unwrap(),
+            ArchiveFormat::Tar
+        );
     }
 
     #[test]
     fn test_from_mime_str_aliases() {
-        assert_eq!(ArchiveFormat::from_mime_str("application/x-gzip").unwrap(), ArchiveFormat::Gz);
-        assert_eq!(ArchiveFormat::from_mime_str("application/x-bzip").unwrap(), ArchiveFormat::Bz2);
-        assert_eq!(ArchiveFormat::from_mime_str("application/x-zstd").unwrap(), ArchiveFormat::Zst);
+        assert_eq!(
+            ArchiveFormat::from_mime_str("application/x-gzip").unwrap(),
+            ArchiveFormat::Gz
+        );
+        assert_eq!(
+            ArchiveFormat::from_mime_str("application/x-bzip").unwrap(),
+            ArchiveFormat::Bz2
+        );
+        assert_eq!(
+            ArchiveFormat::from_mime_str("application/x-zstd").unwrap(),
+            ArchiveFormat::Zst
+        );
     }
 
     #[test]
@@ -504,14 +635,17 @@ mod tests {
         let cursor = writer.finish().unwrap();
         let data = cursor.into_inner();
 
-        assert_eq!(ArchiveFormat::from_bytes(&data).unwrap(), ArchiveFormat::Zip);
+        assert_eq!(
+            ArchiveFormat::from_bytes(&data).unwrap(),
+            ArchiveFormat::Zip
+        );
     }
 
     #[cfg(feature = "detect-infer")]
     #[test]
     fn test_from_bytes_gz() {
-        use flate2::write::GzEncoder;
         use flate2::Compression;
+        use flate2::write::GzEncoder;
         let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
         std::io::Write::write_all(&mut encoder, b"hello").unwrap();
         let data = encoder.finish().unwrap();
@@ -526,7 +660,10 @@ mod tests {
         std::io::Write::write_all(&mut encoder, b"hello").unwrap();
         let data = encoder.finish().unwrap();
 
-        assert_eq!(ArchiveFormat::from_bytes(&data).unwrap(), ArchiveFormat::Bz2);
+        assert_eq!(
+            ArchiveFormat::from_bytes(&data).unwrap(),
+            ArchiveFormat::Bz2
+        );
     }
 
     #[cfg(feature = "detect-infer")]
@@ -535,7 +672,10 @@ mod tests {
         let mut output = Vec::new();
         lzma_rs::xz_compress(&mut std::io::Cursor::new(b"hello"), &mut output).unwrap();
 
-        assert_eq!(ArchiveFormat::from_bytes(&output).unwrap(), ArchiveFormat::Xz);
+        assert_eq!(
+            ArchiveFormat::from_bytes(&output).unwrap(),
+            ArchiveFormat::Xz
+        );
     }
 
     #[cfg(feature = "detect-infer")]
@@ -543,7 +683,10 @@ mod tests {
     fn test_from_bytes_zst() {
         let data = zstd::encode_all(std::io::Cursor::new(b"hello"), 3).unwrap();
 
-        assert_eq!(ArchiveFormat::from_bytes(&data).unwrap(), ArchiveFormat::Zst);
+        assert_eq!(
+            ArchiveFormat::from_bytes(&data).unwrap(),
+            ArchiveFormat::Zst
+        );
     }
 
     #[cfg(feature = "detect-infer")]
