@@ -289,6 +289,57 @@ impl ArchiveExtractor {
     ///     .with_format_from_filename()
     ///     .unwrap();
     /// ```
+    /// Sets the archive format by parsing a MIME type string.
+    ///
+    /// This is a convenience wrapper around [`ArchiveFormat::from_mime_str`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ArchiveError::UnsupportedFormat`] if the MIME type is not recognized.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use archive::{ArchiveExtractor, ArchiveFormat};
+    ///
+    /// let extractor = ArchiveExtractor::new()
+    ///     .with_format_from_mime("application/zip")
+    ///     .unwrap();
+    /// ```
+    pub fn with_format_from_mime(mut self, mime: &str) -> Result<Self> {
+        self.format = Some(ArchiveFormat::from_mime_str(mime)?);
+        Ok(self)
+    }
+
+    /// Sets the archive format by detecting it from file content using magic bytes.
+    ///
+    /// This is a convenience wrapper around [`ArchiveFormat::from_bytes`].
+    ///
+    /// Requires the `detect-libmagic` or `detect-infer` feature.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ArchiveError::UnknownFormat`] if the format cannot be detected.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use archive::ArchiveExtractor;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let data = std::fs::read("archive.zip")?;
+    /// let extractor = ArchiveExtractor::new()
+    ///     .with_format_from_bytes(&data)?;
+    /// let files = extractor.extract(&data)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(any(feature = "detect-libmagic", feature = "detect-infer"))]
+    pub fn with_format_from_bytes(mut self, data: &[u8]) -> Result<Self> {
+        self.format = Some(ArchiveFormat::from_bytes(data)?);
+        Ok(self)
+    }
+
     pub fn with_format_from_filename(mut self) -> Result<Self> {
         let filename = self.source_filename.as_deref()
             .ok_or(ArchiveError::UnknownFormat)?;
@@ -873,5 +924,61 @@ mod tests {
             extractor.derive_single_file_path(ArchiveFormat::Bz2),
             "data"
         );
+    }
+
+    #[test]
+    fn test_with_format_from_mime() {
+        let extractor = ArchiveExtractor::new()
+            .with_format_from_mime("application/zip")
+            .unwrap();
+        assert_eq!(extractor.format, Some(ArchiveFormat::Zip));
+    }
+
+    #[test]
+    fn test_with_format_from_mime_gzip() {
+        let extractor = ArchiveExtractor::new()
+            .with_format_from_mime("application/gzip")
+            .unwrap();
+        assert_eq!(extractor.format, Some(ArchiveFormat::Gz));
+    }
+
+    #[test]
+    fn test_with_format_from_mime_unknown() {
+        let result = ArchiveExtractor::new()
+            .with_format_from_mime("text/plain");
+        assert!(result.is_err());
+    }
+
+    #[cfg(feature = "detect-infer")]
+    #[test]
+    fn test_with_format_from_bytes_zip() {
+        let buf = Vec::new();
+        let cursor = std::io::Cursor::new(buf);
+        let mut writer = zip::ZipWriter::new(cursor);
+        let options = zip::write::SimpleFileOptions::default();
+        writer.start_file("test.txt", options).unwrap();
+        std::io::Write::write_all(&mut writer, b"hello").unwrap();
+        let cursor = writer.finish().unwrap();
+        let data = cursor.into_inner();
+
+        let extractor = ArchiveExtractor::new()
+            .with_format_from_bytes(&data)
+            .unwrap();
+        assert_eq!(extractor.format, Some(ArchiveFormat::Zip));
+    }
+
+    #[cfg(feature = "detect-infer")]
+    #[test]
+    fn test_with_format_from_bytes_gz() {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        std::io::Write::write_all(&mut encoder, b"hello").unwrap();
+        let data = encoder.finish().unwrap();
+
+        let extractor = ArchiveExtractor::new()
+            .with_format_from_bytes(&data)
+            .unwrap();
+        assert_eq!(extractor.format, Some(ArchiveFormat::Gz));
     }
 }

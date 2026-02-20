@@ -227,6 +227,104 @@ impl ArchiveFormat {
         }
     }
 
+    /// Determines the archive format from a MIME type string.
+    ///
+    /// Performs case-insensitive matching against known archive MIME types.
+    ///
+    /// Note that MIME types alone cannot distinguish `TarGz` from `Gz`,
+    /// `TarBz2` from `Bz2`, etc. — this method returns the base compression
+    /// format. Combine with [`from_filename`](Self::from_filename) when you
+    /// need tar+compression detection.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ArchiveError::UnsupportedFormat`] if the MIME type is not recognized.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use archive::ArchiveFormat;
+    ///
+    /// assert_eq!(ArchiveFormat::from_mime_str("application/zip").unwrap(), ArchiveFormat::Zip);
+    /// assert_eq!(ArchiveFormat::from_mime_str("application/gzip").unwrap(), ArchiveFormat::Gz);
+    /// assert_eq!(ArchiveFormat::from_mime_str("APPLICATION/ZIP").unwrap(), ArchiveFormat::Zip);
+    /// assert!(ArchiveFormat::from_mime_str("text/plain").is_err());
+    /// ```
+    pub fn from_mime_str(mime: &str) -> Result<Self, ArchiveError> {
+        match mime.to_ascii_lowercase().as_str() {
+            "application/zip" => Ok(Self::Zip),
+            "application/x-tar" => Ok(Self::Tar),
+            "application/x-ar" => Ok(Self::Ar),
+            "application/vnd.debian.binary-package" => Ok(Self::Deb),
+            "application/gzip" | "application/x-gzip" => Ok(Self::Gz),
+            "application/x-bzip2" | "application/x-bzip" => Ok(Self::Bz2),
+            "application/x-xz" => Ok(Self::Xz),
+            "application/x-lz4" => Ok(Self::Lz4),
+            "application/zstd" | "application/x-zstd" => Ok(Self::Zst),
+            "application/x-7z-compressed" => Ok(Self::SevenZ),
+            other => Err(ArchiveError::UnsupportedFormat(other.to_string())),
+        }
+    }
+
+    /// Detects the archive format from file content using magic byte signatures.
+    ///
+    /// This method is available when either the `detect-libmagic` or `detect-infer`
+    /// feature is enabled. If both are enabled, `detect-libmagic` takes priority.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ArchiveError::UnknownFormat`] if the format cannot be detected.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use archive::ArchiveFormat;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let data = std::fs::read("archive.zip")?;
+    /// let format = ArchiveFormat::from_bytes(&data)?;
+    /// assert_eq!(format, ArchiveFormat::Zip);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "detect-libmagic")]
+    pub fn from_bytes(data: &[u8]) -> Result<Self, ArchiveError> {
+        let cookie = magic::Cookie::open(magic::CookieFlags::MIME_TYPE)
+            .map_err(|e| ArchiveError::InvalidArchive(format!("libmagic error: {e}")))?;
+        cookie.load::<&str>(&[])
+            .map_err(|e| ArchiveError::InvalidArchive(format!("libmagic load error: {e}")))?;
+        let mime = cookie.buffer(data)
+            .map_err(|e| ArchiveError::InvalidArchive(format!("libmagic buffer error: {e}")))?;
+        Self::from_mime_str(&mime).map_err(|_| ArchiveError::UnknownFormat)
+    }
+
+    /// Detects the archive format from file content using magic byte signatures.
+    ///
+    /// This method is available when either the `detect-libmagic` or `detect-infer`
+    /// feature is enabled. If both are enabled, `detect-libmagic` takes priority.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ArchiveError::UnknownFormat`] if the format cannot be detected.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use archive::ArchiveFormat;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let data = std::fs::read("archive.zip")?;
+    /// let format = ArchiveFormat::from_bytes(&data)?;
+    /// assert_eq!(format, ArchiveFormat::Zip);
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(all(feature = "detect-infer", not(feature = "detect-libmagic")))]
+    pub fn from_bytes(data: &[u8]) -> Result<Self, ArchiveError> {
+        let kind = infer::get(data).ok_or(ArchiveError::UnknownFormat)?;
+        Self::from_mime_str(kind.mime_type()).map_err(|_| ArchiveError::UnknownFormat)
+    }
+
     /// Checks if a given MIME type corresponds to a supported archive format.
     ///
     /// This method attempts to convert the provided MIME type into an
@@ -356,5 +454,101 @@ mod tests {
         assert!(ArchiveFormat::from_filename("readme.txt").is_err());
         assert!(ArchiveFormat::from_filename("photo.png").is_err());
         assert!(ArchiveFormat::from_filename("noextension").is_err());
+    }
+
+    #[test]
+    fn test_from_mime_str_all_supported() {
+        assert_eq!(ArchiveFormat::from_mime_str("application/zip").unwrap(), ArchiveFormat::Zip);
+        assert_eq!(ArchiveFormat::from_mime_str("application/x-tar").unwrap(), ArchiveFormat::Tar);
+        assert_eq!(ArchiveFormat::from_mime_str("application/x-ar").unwrap(), ArchiveFormat::Ar);
+        assert_eq!(ArchiveFormat::from_mime_str("application/vnd.debian.binary-package").unwrap(), ArchiveFormat::Deb);
+        assert_eq!(ArchiveFormat::from_mime_str("application/gzip").unwrap(), ArchiveFormat::Gz);
+        assert_eq!(ArchiveFormat::from_mime_str("application/x-bzip2").unwrap(), ArchiveFormat::Bz2);
+        assert_eq!(ArchiveFormat::from_mime_str("application/x-xz").unwrap(), ArchiveFormat::Xz);
+        assert_eq!(ArchiveFormat::from_mime_str("application/x-lz4").unwrap(), ArchiveFormat::Lz4);
+        assert_eq!(ArchiveFormat::from_mime_str("application/zstd").unwrap(), ArchiveFormat::Zst);
+        assert_eq!(ArchiveFormat::from_mime_str("application/x-7z-compressed").unwrap(), ArchiveFormat::SevenZ);
+    }
+
+    #[test]
+    fn test_from_mime_str_case_insensitive() {
+        assert_eq!(ArchiveFormat::from_mime_str("APPLICATION/ZIP").unwrap(), ArchiveFormat::Zip);
+        assert_eq!(ArchiveFormat::from_mime_str("Application/Gzip").unwrap(), ArchiveFormat::Gz);
+        assert_eq!(ArchiveFormat::from_mime_str("APPLICATION/X-TAR").unwrap(), ArchiveFormat::Tar);
+    }
+
+    #[test]
+    fn test_from_mime_str_aliases() {
+        assert_eq!(ArchiveFormat::from_mime_str("application/x-gzip").unwrap(), ArchiveFormat::Gz);
+        assert_eq!(ArchiveFormat::from_mime_str("application/x-bzip").unwrap(), ArchiveFormat::Bz2);
+        assert_eq!(ArchiveFormat::from_mime_str("application/x-zstd").unwrap(), ArchiveFormat::Zst);
+    }
+
+    #[test]
+    fn test_from_mime_str_unknown() {
+        assert!(ArchiveFormat::from_mime_str("text/plain").is_err());
+        assert!(ArchiveFormat::from_mime_str("application/octet-stream").is_err());
+        assert!(ArchiveFormat::from_mime_str("image/png").is_err());
+    }
+
+    #[cfg(feature = "detect-infer")]
+    #[test]
+    fn test_from_bytes_zip() {
+        // Create a minimal ZIP in memory
+        let buf = Vec::new();
+        let cursor = std::io::Cursor::new(buf);
+        let mut writer = zip::ZipWriter::new(cursor);
+        let options = zip::write::SimpleFileOptions::default();
+        writer.start_file("test.txt", options).unwrap();
+        std::io::Write::write_all(&mut writer, b"hello").unwrap();
+        let cursor = writer.finish().unwrap();
+        let data = cursor.into_inner();
+
+        assert_eq!(ArchiveFormat::from_bytes(&data).unwrap(), ArchiveFormat::Zip);
+    }
+
+    #[cfg(feature = "detect-infer")]
+    #[test]
+    fn test_from_bytes_gz() {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        std::io::Write::write_all(&mut encoder, b"hello").unwrap();
+        let data = encoder.finish().unwrap();
+
+        assert_eq!(ArchiveFormat::from_bytes(&data).unwrap(), ArchiveFormat::Gz);
+    }
+
+    #[cfg(feature = "detect-infer")]
+    #[test]
+    fn test_from_bytes_bz2() {
+        let mut encoder = bzip2::write::BzEncoder::new(Vec::new(), bzip2::Compression::default());
+        std::io::Write::write_all(&mut encoder, b"hello").unwrap();
+        let data = encoder.finish().unwrap();
+
+        assert_eq!(ArchiveFormat::from_bytes(&data).unwrap(), ArchiveFormat::Bz2);
+    }
+
+    #[cfg(feature = "detect-infer")]
+    #[test]
+    fn test_from_bytes_xz() {
+        let mut output = Vec::new();
+        lzma_rs::xz_compress(&mut std::io::Cursor::new(b"hello"), &mut output).unwrap();
+
+        assert_eq!(ArchiveFormat::from_bytes(&output).unwrap(), ArchiveFormat::Xz);
+    }
+
+    #[cfg(feature = "detect-infer")]
+    #[test]
+    fn test_from_bytes_zst() {
+        let data = zstd::encode_all(std::io::Cursor::new(b"hello"), 3).unwrap();
+
+        assert_eq!(ArchiveFormat::from_bytes(&data).unwrap(), ArchiveFormat::Zst);
+    }
+
+    #[cfg(feature = "detect-infer")]
+    #[test]
+    fn test_from_bytes_unknown() {
+        assert!(ArchiveFormat::from_bytes(b"just some random text").is_err());
     }
 }
