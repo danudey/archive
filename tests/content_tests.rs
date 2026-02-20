@@ -11,7 +11,7 @@ fn test_verify_file_contents() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Zip)
+        .extract_with_format(&data, ArchiveFormat::Zip)
         .expect("Failed to extract basic.zip");
 
     // Find hello.txt and verify its content
@@ -27,7 +27,7 @@ fn test_nested_directory_structure() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Zip)
+        .extract_with_format(&data, ArchiveFormat::Zip)
         .expect("Failed to extract basic.zip");
 
     // Check for deeply nested file
@@ -40,7 +40,7 @@ fn test_binary_file_extraction() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Zip)
+        .extract_with_format(&data, ArchiveFormat::Zip)
         .expect("Failed to extract basic.zip");
 
     // Find binary.bin
@@ -60,7 +60,7 @@ fn test_large_file_extraction() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Zip)
+        .extract_with_format(&data, ArchiveFormat::Zip)
         .expect("Failed to extract basic.zip");
 
     // Find large-file.bin

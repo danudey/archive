@@ -21,7 +21,7 @@ use std::io::{Cursor, Read};
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let extractor = ArchiveExtractor::new();
 /// # let data = vec![0u8; 100];
-/// let files = extractor.extract(&data, ArchiveFormat::Zip)?;
+/// let files = extractor.extract_with_format(&data, ArchiveFormat::Zip)?;
 ///
 /// for file in files {
 ///     if file.is_directory {
@@ -85,9 +85,26 @@ pub struct ExtractedFile {
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let data = fs::read("archive.zip")?;
 /// let extractor = ArchiveExtractor::new();
-/// let files = extractor.extract(&data, ArchiveFormat::Zip)?;
+/// let files = extractor.extract_with_format(&data, ArchiveFormat::Zip)?;
 ///
 /// println!("Extracted {} files", files.len());
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## Builder pattern with format
+///
+/// ```no_run
+/// use archive::{ArchiveExtractor, ArchiveFormat};
+/// use std::fs;
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let data = fs::read("archive.tar.gz")?;
+/// let extractor = ArchiveExtractor::new()
+///     .with_source_filename("archive.tar.gz")
+///     .with_format(ArchiveFormat::TarGz);
+///
+/// let files = extractor.extract(&data)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -103,27 +120,7 @@ pub struct ExtractedFile {
 ///     .with_max_total_size(100 * 1024 * 1024);  // 100 MB total
 ///
 /// # let data = vec![0u8; 100];
-/// let files = extractor.extract(&data, ArchiveFormat::TarGz)?;
-/// # Ok(())
-/// # }
-/// ```
-///
-/// ## Handling different formats
-///
-/// ```no_run
-/// use archive::{ArchiveExtractor, ArchiveFormat};
-///
-/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let extractor = ArchiveExtractor::new();
-///
-/// // Extract different archive types
-/// # let zip_data = vec![0u8; 100];
-/// let zip_files = extractor.extract(&zip_data, ArchiveFormat::Zip)?;
-/// # let tar_data = vec![0u8; 100];
-/// let tar_files = extractor.extract(&tar_data, ArchiveFormat::TarGz)?;
-/// # let sevenz_data = vec![0u8; 100];
-/// let sevenz_files = extractor.extract(&sevenz_data, ArchiveFormat::SevenZ)?;
-///
+/// let files = extractor.extract_with_format(&data, ArchiveFormat::TarGz)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -131,6 +128,8 @@ pub struct ExtractedFile {
 pub struct ArchiveExtractor {
     max_file_size: usize,
     max_total_size: usize,
+    source_filename: Option<String>,
+    format: Option<ArchiveFormat>,
 }
 
 impl Default for ArchiveExtractor {
@@ -138,6 +137,8 @@ impl Default for ArchiveExtractor {
         Self {
             max_file_size: 100 * 1024 * 1024,   // 100 MB per file
             max_total_size: 1024 * 1024 * 1024, // 1 GB total
+            source_filename: None,
+            format: None,
         }
     }
 }
@@ -222,10 +223,113 @@ impl ArchiveExtractor {
         self
     }
 
-    /// Extracts all files from an archive.
+    /// Sets the source filename for the archive.
     ///
-    /// This is the main extraction method that handles all supported archive formats.
-    /// The format must be explicitly specified via the `format` parameter.
+    /// This is used to derive output filenames for single-file compression
+    /// formats (Gz, Bz2, Xz, Lz4, Zst) by stripping the compression extension.
+    /// For example, `"hello.txt.bz2"` produces an output path of `"hello.txt"`.
+    ///
+    /// For gzip, the header filename still takes priority; the source filename
+    /// is the fallback before `"data"`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use archive::ArchiveExtractor;
+    ///
+    /// let extractor = ArchiveExtractor::new()
+    ///     .with_source_filename("hello.txt.gz");
+    /// ```
+    pub fn with_source_filename(mut self, filename: impl Into<String>) -> Self {
+        self.source_filename = Some(filename.into());
+        self
+    }
+
+    /// Sets the archive format explicitly.
+    ///
+    /// When set, the [`extract`](Self::extract) method will use this format
+    /// instead of requiring it as a parameter.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use archive::{ArchiveExtractor, ArchiveFormat};
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let extractor = ArchiveExtractor::new()
+    ///     .with_format(ArchiveFormat::Gz);
+    ///
+    /// # let data = vec![0u8; 100];
+    /// let files = extractor.extract(&data)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_format(mut self, format: ArchiveFormat) -> Self {
+        self.format = Some(format);
+        self
+    }
+
+    /// Infers the archive format from the configured source filename.
+    ///
+    /// This method uses [`ArchiveFormat::from_filename`] to determine the format
+    /// from the source filename set via [`with_source_filename`](Self::with_source_filename).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ArchiveError::UnknownFormat`] if no source filename is set
+    /// or if the extension is not recognized.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use archive::{ArchiveExtractor, ArchiveFormat};
+    ///
+    /// let extractor = ArchiveExtractor::new()
+    ///     .with_source_filename("archive.tar.gz")
+    ///     .with_format_from_filename()
+    ///     .unwrap();
+    /// ```
+    pub fn with_format_from_filename(mut self) -> Result<Self> {
+        let filename = self.source_filename.as_deref()
+            .ok_or(ArchiveError::UnknownFormat)?;
+        self.format = Some(ArchiveFormat::from_filename(filename)?);
+        Ok(self)
+    }
+
+    /// Extracts all files from an archive using the builder-configured format.
+    ///
+    /// The format must have been previously set via [`with_format`](Self::with_format)
+    /// or [`with_format_from_filename`](Self::with_format_from_filename).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ArchiveError::UnknownFormat`] if no format has been configured.
+    /// See [`extract_with_format`](Self::extract_with_format) for other possible errors.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use archive::{ArchiveExtractor, ArchiveFormat};
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let extractor = ArchiveExtractor::new()
+    ///     .with_source_filename("infile.gz")
+    ///     .with_format(ArchiveFormat::Gz);
+    ///
+    /// # let data = vec![0u8; 100];
+    /// let files = extractor.extract(&data)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn extract(&self, data: &[u8]) -> Result<Vec<ExtractedFile>> {
+        let format = self.format.ok_or(ArchiveError::UnknownFormat)?;
+        self.extract_with_format(data, format)
+    }
+
+    /// Extracts all files from an archive with an explicitly specified format.
+    ///
+    /// This method handles all supported archive formats. Unlike [`extract`](Self::extract),
+    /// the format is passed directly rather than using the builder-configured format.
     ///
     /// # Arguments
     ///
@@ -248,8 +352,6 @@ impl ArchiveExtractor {
     ///
     /// # Examples
     ///
-    /// ## Extract a ZIP file
-    ///
     /// ```no_run
     /// use archive::{ArchiveExtractor, ArchiveFormat};
     /// use std::fs;
@@ -257,7 +359,7 @@ impl ArchiveExtractor {
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let data = fs::read("example.zip")?;
     /// let extractor = ArchiveExtractor::new();
-    /// let files = extractor.extract(&data, ArchiveFormat::Zip)?;
+    /// let files = extractor.extract_with_format(&data, ArchiveFormat::Zip)?;
     ///
     /// for file in files {
     ///     println!("{}: {} bytes", file.path, file.data.len());
@@ -265,53 +367,7 @@ impl ArchiveExtractor {
     /// # Ok(())
     /// # }
     /// ```
-    ///
-    /// ## Handle extraction errors
-    ///
-    /// ```no_run
-    /// use archive::{ArchiveExtractor, ArchiveFormat, ArchiveError};
-    ///
-    /// # fn main() {
-    /// let extractor = ArchiveExtractor::new()
-    ///     .with_max_file_size(1024 * 1024); // 1 MB limit
-    ///
-    /// # let data = vec![0u8; 100];
-    /// match extractor.extract(&data, ArchiveFormat::Zip) {
-    ///     Ok(files) => {
-    ///         println!("Successfully extracted {} files", files.len());
-    ///     }
-    ///     Err(ArchiveError::FileTooLarge { size, limit }) => {
-    ///         eprintln!("File too large: {} bytes (limit: {} bytes)", size, limit);
-    ///     }
-    ///     Err(ArchiveError::InvalidArchive(msg)) => {
-    ///         eprintln!("Invalid archive: {}", msg);
-    ///     }
-    ///     Err(e) => {
-    ///         eprintln!("Extraction failed: {}", e);
-    ///     }
-    /// }
-    /// # }
-    /// ```
-    ///
-    /// ## Extract multiple formats
-    ///
-    /// ```no_run
-    /// use archive::{ArchiveExtractor, ArchiveFormat};
-    ///
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let extractor = ArchiveExtractor::new();
-    ///
-    /// # let zip_data = vec![0u8; 100];
-    /// let zip_files = extractor.extract(&zip_data, ArchiveFormat::Zip)?;
-    /// # let tar_data = vec![0u8; 100];
-    /// let tar_files = extractor.extract(&tar_data, ArchiveFormat::TarGz)?;
-    /// # let gz_data = vec![0u8; 100];
-    /// let gz_files = extractor.extract(&gz_data, ArchiveFormat::Gz)?;
-    ///
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn extract(&self, data: &[u8], format: ArchiveFormat) -> Result<Vec<ExtractedFile>> {
+    pub fn extract_with_format(&self, data: &[u8], format: ArchiveFormat) -> Result<Vec<ExtractedFile>> {
         match format {
             ArchiveFormat::Zip => self.extract_zip(data),
             ArchiveFormat::Tar => self.extract_tar(data),
@@ -329,6 +385,29 @@ impl ArchiveExtractor {
             ArchiveFormat::Lz4 => self.extract_single_lz4(data),
             ArchiveFormat::Zst => self.extract_single_zst(data),
         }
+    }
+
+    /// Derives an output filename for single-file compression by stripping
+    /// the compression extension from `source_filename`.
+    fn derive_single_file_path(&self, format: ArchiveFormat) -> String {
+        if let Some(ref filename) = self.source_filename {
+            let ext = match format {
+                ArchiveFormat::Gz => ".gz",
+                ArchiveFormat::Bz2 => ".bz2",
+                ArchiveFormat::Xz => ".xz",
+                ArchiveFormat::Lz4 => ".lz4",
+                ArchiveFormat::Zst => ".zst",
+                _ => return "data".to_string(),
+            };
+            let lower = filename.to_lowercase();
+            if lower.ends_with(ext) {
+                let stripped = &filename[..filename.len() - ext.len()];
+                if !stripped.is_empty() {
+                    return stripped.to_string();
+                }
+            }
+        }
+        "data".to_string()
     }
 
     fn extract_zip(&self, data: &[u8]) -> Result<Vec<ExtractedFile>> {
@@ -510,13 +589,15 @@ impl ArchiveExtractor {
             });
         }
 
-        // Try to extract original filename from gzip header
+        // Try to extract original filename from gzip header, fall back to
+        // source_filename-derived path, then "data"
+        let fallback = self.derive_single_file_path(ArchiveFormat::Gz);
         let path = decoder
             .header()
             .and_then(|h| h.filename())
             .and_then(|f| std::str::from_utf8(f).ok())
-            .unwrap_or("data")
-            .to_string();
+            .map(|s| s.to_string())
+            .unwrap_or(fallback);
 
         Ok(vec![ExtractedFile {
             path,
@@ -539,7 +620,7 @@ impl ArchiveExtractor {
         }
 
         Ok(vec![ExtractedFile {
-            path: "data".to_string(),
+            path: self.derive_single_file_path(ArchiveFormat::Bz2),
             data: decompressed,
             is_directory: false,
         }])
@@ -559,7 +640,7 @@ impl ArchiveExtractor {
         }
 
         Ok(vec![ExtractedFile {
-            path: "data".to_string(),
+            path: self.derive_single_file_path(ArchiveFormat::Xz),
             data: decompressed,
             is_directory: false,
         }])
@@ -579,7 +660,7 @@ impl ArchiveExtractor {
         }
 
         Ok(vec![ExtractedFile {
-            path: "data".to_string(),
+            path: self.derive_single_file_path(ArchiveFormat::Lz4),
             data: decompressed,
             is_directory: false,
         }])
@@ -599,7 +680,7 @@ impl ArchiveExtractor {
         }
 
         Ok(vec![ExtractedFile {
-            path: "data".to_string(),
+            path: self.derive_single_file_path(ArchiveFormat::Zst),
             data: decompressed,
             is_directory: false,
         }])
@@ -714,5 +795,83 @@ mod tests {
 
         assert_eq!(extractor.max_file_size, 50 * 1024 * 1024);
         assert_eq!(extractor.max_total_size, 500 * 1024 * 1024);
+    }
+
+    #[test]
+    fn test_with_format_and_extract() {
+        // Create a minimal bz2 compressed "hello"
+        use std::io::Write;
+        let mut encoder = bzip2::write::BzEncoder::new(Vec::new(), bzip2::Compression::default());
+        encoder.write_all(b"hello").unwrap();
+        let data = encoder.finish().unwrap();
+
+        let extractor = ArchiveExtractor::new()
+            .with_format(ArchiveFormat::Bz2);
+
+        let files = extractor.extract(&data).unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].data, b"hello");
+    }
+
+    #[test]
+    fn test_with_source_filename_and_format_from_filename() {
+        use std::io::Write;
+        let mut encoder = bzip2::write::BzEncoder::new(Vec::new(), bzip2::Compression::default());
+        encoder.write_all(b"hello").unwrap();
+        let data = encoder.finish().unwrap();
+
+        let extractor = ArchiveExtractor::new()
+            .with_source_filename("hello.txt.bz2")
+            .with_format_from_filename()
+            .unwrap();
+
+        let files = extractor.extract(&data).unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "hello.txt");
+    }
+
+    #[test]
+    fn test_extract_without_format_returns_unknown() {
+        let extractor = ArchiveExtractor::new();
+        let result = extractor.extract(&[]);
+        assert!(matches!(result, Err(ArchiveError::UnknownFormat)));
+    }
+
+    #[test]
+    fn test_with_format_from_filename_without_source_returns_unknown() {
+        let result = ArchiveExtractor::new().with_format_from_filename();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_source_filename_derives_output_path() {
+        let extractor = ArchiveExtractor::new()
+            .with_source_filename("report.txt.bz2");
+
+        assert_eq!(
+            extractor.derive_single_file_path(ArchiveFormat::Bz2),
+            "report.txt"
+        );
+    }
+
+    #[test]
+    fn test_derive_path_no_source_filename() {
+        let extractor = ArchiveExtractor::new();
+        assert_eq!(
+            extractor.derive_single_file_path(ArchiveFormat::Bz2),
+            "data"
+        );
+    }
+
+    #[test]
+    fn test_derive_path_non_matching_extension() {
+        let extractor = ArchiveExtractor::new()
+            .with_source_filename("file.txt.gz");
+
+        // Asking for bz2 path but filename ends in .gz — no match
+        assert_eq!(
+            extractor.derive_single_file_path(ArchiveFormat::Bz2),
+            "data"
+        );
     }
 }

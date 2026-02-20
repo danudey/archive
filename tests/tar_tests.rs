@@ -11,7 +11,7 @@ fn test_plain_tar() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Tar)
+        .extract_with_format(&data, ArchiveFormat::Tar)
         .expect("Failed to extract archive.tar");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -24,7 +24,7 @@ fn test_tar_gz() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::TarGz)
+        .extract_with_format(&data, ArchiveFormat::TarGz)
         .expect("Failed to extract archive.tar.gz");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -37,7 +37,7 @@ fn test_tgz() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::TarGz)
+        .extract_with_format(&data, ArchiveFormat::TarGz)
         .expect("Failed to extract archive.tgz");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -50,7 +50,7 @@ fn test_tar_bz2() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::TarBz2)
+        .extract_with_format(&data, ArchiveFormat::TarBz2)
         .expect("Failed to extract archive.tar.bz2");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -63,7 +63,7 @@ fn test_tbz2() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::TarBz2)
+        .extract_with_format(&data, ArchiveFormat::TarBz2)
         .expect("Failed to extract archive.tbz2");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -76,7 +76,7 @@ fn test_tar_xz() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::TarXz)
+        .extract_with_format(&data, ArchiveFormat::TarXz)
         .expect("Failed to extract archive.tar.xz");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -89,7 +89,7 @@ fn test_txz() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::TarXz)
+        .extract_with_format(&data, ArchiveFormat::TarXz)
         .expect("Failed to extract archive.txz");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -102,7 +102,7 @@ fn test_tar_zst() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::TarZst)
+        .extract_with_format(&data, ArchiveFormat::TarZst)
         .expect("Failed to extract archive.tar.zst");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -115,7 +115,7 @@ fn test_nested_tar_gz() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::TarGz)
+        .extract_with_format(&data, ArchiveFormat::TarGz)
         .expect("Failed to extract nested.tar.gz");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -139,11 +139,11 @@ fn test_all_tar_formats_produce_same_structure() {
     let tar_xz = read_test_archive("archive.tar.xz");
     let tar_zst = read_test_archive("archive.tar.zst");
 
-    let files_tar = extractor.extract(&tar, ArchiveFormat::Tar).unwrap();
-    let files_tar_gz = extractor.extract(&tar_gz, ArchiveFormat::TarGz).unwrap();
-    let files_tar_bz2 = extractor.extract(&tar_bz2, ArchiveFormat::TarBz2).unwrap();
-    let files_tar_xz = extractor.extract(&tar_xz, ArchiveFormat::TarXz).unwrap();
-    let files_tar_zst = extractor.extract(&tar_zst, ArchiveFormat::TarZst).unwrap();
+    let files_tar = extractor.extract_with_format(&tar, ArchiveFormat::Tar).unwrap();
+    let files_tar_gz = extractor.extract_with_format(&tar_gz, ArchiveFormat::TarGz).unwrap();
+    let files_tar_bz2 = extractor.extract_with_format(&tar_bz2, ArchiveFormat::TarBz2).unwrap();
+    let files_tar_xz = extractor.extract_with_format(&tar_xz, ArchiveFormat::TarXz).unwrap();
+    let files_tar_zst = extractor.extract_with_format(&tar_zst, ArchiveFormat::TarZst).unwrap();
 
     // All should have the same number of files
     assert_eq!(files_tar.len(), files_tar_gz.len());

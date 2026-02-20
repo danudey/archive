@@ -11,7 +11,7 @@ fn test_7z_archive() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::SevenZ)
+        .extract_with_format(&data, ArchiveFormat::SevenZ)
         .expect("Failed to extract archive.7z");
 
     assert!(!files.is_empty(), "Expected non-empty archive");

@@ -35,7 +35,7 @@
 //! let extractor = ArchiveExtractor::new();
 //!
 //! // Extract all files
-//! let files = extractor.extract(&data, ArchiveFormat::Zip)?;
+//! let files = extractor.extract_with_format(&data, ArchiveFormat::Zip)?;
 //!
 //! // Process extracted files
 //! for file in files {
@@ -60,7 +60,7 @@
 //!     .with_max_file_size(50 * 1024 * 1024)      // 50 MB per file
 //!     .with_max_total_size(500 * 1024 * 1024);   // 500 MB total
 //!
-//! let files = extractor.extract(&data, ArchiveFormat::Zip)?;
+//! let files = extractor.extract_with_format(&data, ArchiveFormat::Zip)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -75,19 +75,19 @@
 //!
 //! // Extract ZIP archive
 //! # let zip_data = vec![0u8; 100];
-//! let zip_files = extractor.extract(&zip_data, ArchiveFormat::Zip)?;
+//! let zip_files = extractor.extract_with_format(&zip_data, ArchiveFormat::Zip)?;
 //!
 //! // Extract TAR.GZ archive
 //! # let targz_data = vec![0u8; 100];
-//! let tar_files = extractor.extract(&targz_data, ArchiveFormat::TarGz)?;
+//! let tar_files = extractor.extract_with_format(&targz_data, ArchiveFormat::TarGz)?;
 //!
 //! // Extract 7-Zip archive
 //! # let sevenz_data = vec![0u8; 100];
-//! let seven_files = extractor.extract(&sevenz_data, ArchiveFormat::SevenZ)?;
+//! let seven_files = extractor.extract_with_format(&sevenz_data, ArchiveFormat::SevenZ)?;
 //!
 //! // Decompress single gzip file
 //! # let gz_data = vec![0u8; 100];
-//! let gz_files = extractor.extract(&gz_data, ArchiveFormat::Gz)?;
+//! let gz_files = extractor.extract_with_format(&gz_data, ArchiveFormat::Gz)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -113,7 +113,7 @@
 //!     .with_max_file_size(1024 * 1024); // 1 MB limit
 //!
 //! # let data = vec![0u8; 100];
-//! match extractor.extract(&data, ArchiveFormat::Zip) {
+//! match extractor.extract_with_format(&data, ArchiveFormat::Zip) {
 //!     Ok(files) => println!("Extracted {} files", files.len()),
 //!     Err(ArchiveError::FileTooLarge { size, limit }) => {
 //!         eprintln!("File too large: {} bytes (limit: {})", size, limit);

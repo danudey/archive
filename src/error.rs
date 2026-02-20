@@ -37,7 +37,7 @@ pub type Result<T> = std::result::Result<T, ArchiveError>;
 ///     .with_max_file_size(1024); // Very small limit for demo
 ///
 /// # let data = vec![0u8; 100];
-/// match extractor.extract(&data, ArchiveFormat::Zip) {
+/// match extractor.extract_with_format(&data, ArchiveFormat::Zip) {
 ///     Ok(files) => println!("Success: {} files", files.len()),
 ///     Err(ArchiveError::FileTooLarge { size, limit }) => {
 ///         eprintln!("File of {} bytes exceeds limit of {}", size, limit);

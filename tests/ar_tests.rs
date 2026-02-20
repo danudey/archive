@@ -11,7 +11,7 @@ fn test_ar() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Ar)
+        .extract_with_format(&data, ArchiveFormat::Ar)
         .expect("Failed to extract archive.ar");
 
     assert!(!files.is_empty(), "Expected non-empty archive");

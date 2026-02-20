@@ -22,15 +22,15 @@ use crate::ArchiveError;
 ///
 /// // Extract a ZIP archive
 /// # let zip_data = vec![0u8; 100];
-/// let files = extractor.extract(&zip_data, ArchiveFormat::Zip)?;
+/// let files = extractor.extract_with_format(&zip_data, ArchiveFormat::Zip)?;
 ///
 /// // Extract a gzip-compressed TAR archive
 /// # let targz_data = vec![0u8; 100];
-/// let files = extractor.extract(&targz_data, ArchiveFormat::TarGz)?;
+/// let files = extractor.extract_with_format(&targz_data, ArchiveFormat::TarGz)?;
 ///
 /// // Decompress a single gzip file
 /// # let gz_data = vec![0u8; 100];
-/// let files = extractor.extract(&gz_data, ArchiveFormat::Gz)?;
+/// let files = extractor.extract_with_format(&gz_data, ArchiveFormat::Gz)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -135,6 +135,64 @@ pub enum ArchiveFormat {
 }
 
 impl ArchiveFormat {
+    /// Determines the archive format from a filename's extension.
+    ///
+    /// Performs case-insensitive matching. Double extensions (e.g. `.tar.gz`)
+    /// are checked before single extensions.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ArchiveError::UnknownFormat`] if the extension is not recognized.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use archive::ArchiveFormat;
+    ///
+    /// assert_eq!(ArchiveFormat::from_filename("archive.tar.gz").unwrap(), ArchiveFormat::TarGz);
+    /// assert_eq!(ArchiveFormat::from_filename("FILE.ZIP").unwrap(), ArchiveFormat::Zip);
+    /// assert!(ArchiveFormat::from_filename("readme.txt").is_err());
+    /// ```
+    pub fn from_filename(filename: &str) -> Result<Self, ArchiveError> {
+        let lower = filename.to_lowercase();
+
+        // Check double extensions first
+        if lower.ends_with(".tar.gz") {
+            return Ok(Self::TarGz);
+        }
+        if lower.ends_with(".tar.bz2") {
+            return Ok(Self::TarBz2);
+        }
+        if lower.ends_with(".tar.xz") {
+            return Ok(Self::TarXz);
+        }
+        if lower.ends_with(".tar.zst") {
+            return Ok(Self::TarZst);
+        }
+        if lower.ends_with(".tar.lz4") {
+            return Ok(Self::TarLz4);
+        }
+
+        // Check single extensions
+        let ext = lower.rsplit('.').next().unwrap_or("");
+        match ext {
+            "zip" => Ok(Self::Zip),
+            "tar" => Ok(Self::Tar),
+            "ar" => Ok(Self::Ar),
+            "deb" => Ok(Self::Deb),
+            "tgz" => Ok(Self::TarGz),
+            "tbz2" => Ok(Self::TarBz2),
+            "txz" => Ok(Self::TarXz),
+            "gz" => Ok(Self::Gz),
+            "bz2" => Ok(Self::Bz2),
+            "xz" => Ok(Self::Xz),
+            "lz4" => Ok(Self::Lz4),
+            "zst" => Ok(Self::Zst),
+            "7z" => Ok(Self::SevenZ),
+            _ => Err(ArchiveError::UnknownFormat),
+        }
+    }
+
     /// Returns the human-readable name of the archive format.
     ///
     /// This method returns a string representation of the format, suitable
@@ -246,5 +304,57 @@ impl From<&ArchiveFormat> for MimeType {
 impl From<ArchiveFormat> for MimeType {
     fn from(format: ArchiveFormat) -> Self {
         MimeType::from(&format)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_from_filename_all_extensions() {
+        assert_eq!(ArchiveFormat::from_filename("a.zip").unwrap(), ArchiveFormat::Zip);
+        assert_eq!(ArchiveFormat::from_filename("a.tar").unwrap(), ArchiveFormat::Tar);
+        assert_eq!(ArchiveFormat::from_filename("a.ar").unwrap(), ArchiveFormat::Ar);
+        assert_eq!(ArchiveFormat::from_filename("a.deb").unwrap(), ArchiveFormat::Deb);
+        assert_eq!(ArchiveFormat::from_filename("a.tar.gz").unwrap(), ArchiveFormat::TarGz);
+        assert_eq!(ArchiveFormat::from_filename("a.tgz").unwrap(), ArchiveFormat::TarGz);
+        assert_eq!(ArchiveFormat::from_filename("a.tar.bz2").unwrap(), ArchiveFormat::TarBz2);
+        assert_eq!(ArchiveFormat::from_filename("a.tbz2").unwrap(), ArchiveFormat::TarBz2);
+        assert_eq!(ArchiveFormat::from_filename("a.tar.xz").unwrap(), ArchiveFormat::TarXz);
+        assert_eq!(ArchiveFormat::from_filename("a.txz").unwrap(), ArchiveFormat::TarXz);
+        assert_eq!(ArchiveFormat::from_filename("a.tar.zst").unwrap(), ArchiveFormat::TarZst);
+        assert_eq!(ArchiveFormat::from_filename("a.tar.lz4").unwrap(), ArchiveFormat::TarLz4);
+        assert_eq!(ArchiveFormat::from_filename("a.gz").unwrap(), ArchiveFormat::Gz);
+        assert_eq!(ArchiveFormat::from_filename("a.bz2").unwrap(), ArchiveFormat::Bz2);
+        assert_eq!(ArchiveFormat::from_filename("a.xz").unwrap(), ArchiveFormat::Xz);
+        assert_eq!(ArchiveFormat::from_filename("a.lz4").unwrap(), ArchiveFormat::Lz4);
+        assert_eq!(ArchiveFormat::from_filename("a.zst").unwrap(), ArchiveFormat::Zst);
+        assert_eq!(ArchiveFormat::from_filename("a.7z").unwrap(), ArchiveFormat::SevenZ);
+    }
+
+    #[test]
+    fn test_from_filename_case_insensitive() {
+        assert_eq!(ArchiveFormat::from_filename("FILE.ZIP").unwrap(), ArchiveFormat::Zip);
+        assert_eq!(ArchiveFormat::from_filename("Archive.Tar.Gz").unwrap(), ArchiveFormat::TarGz);
+        assert_eq!(ArchiveFormat::from_filename("DATA.BZ2").unwrap(), ArchiveFormat::Bz2);
+        assert_eq!(ArchiveFormat::from_filename("backup.TAR.XZ").unwrap(), ArchiveFormat::TarXz);
+    }
+
+    #[test]
+    fn test_from_filename_double_extensions() {
+        // Double extensions should match before single
+        assert_eq!(ArchiveFormat::from_filename("foo.tar.gz").unwrap(), ArchiveFormat::TarGz);
+        assert_eq!(ArchiveFormat::from_filename("foo.tar.bz2").unwrap(), ArchiveFormat::TarBz2);
+        assert_eq!(ArchiveFormat::from_filename("foo.tar.xz").unwrap(), ArchiveFormat::TarXz);
+        assert_eq!(ArchiveFormat::from_filename("foo.tar.zst").unwrap(), ArchiveFormat::TarZst);
+        assert_eq!(ArchiveFormat::from_filename("foo.tar.lz4").unwrap(), ArchiveFormat::TarLz4);
+    }
+
+    #[test]
+    fn test_from_filename_unknown_extension() {
+        assert!(ArchiveFormat::from_filename("readme.txt").is_err());
+        assert!(ArchiveFormat::from_filename("photo.png").is_err());
+        assert!(ArchiveFormat::from_filename("noextension").is_err());
     }
 }

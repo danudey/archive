@@ -11,7 +11,7 @@ fn test_basic_zip() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Zip)
+        .extract_with_format(&data, ArchiveFormat::Zip)
         .expect("Failed to extract basic.zip");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -28,7 +28,7 @@ fn test_no_compression_zip() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Zip)
+        .extract_with_format(&data, ArchiveFormat::Zip)
         .expect("Failed to extract no-compression.zip");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -41,7 +41,7 @@ fn test_max_compression_zip() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Zip)
+        .extract_with_format(&data, ArchiveFormat::Zip)
         .expect("Failed to extract max-compression.zip");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -54,7 +54,7 @@ fn test_encrypted_zip() {
     let extractor = ArchiveExtractor::new();
 
     // Encrypted archives should fail without password support
-    let result = extractor.extract(&data, ArchiveFormat::Zip);
+    let result = extractor.extract_with_format(&data, ArchiveFormat::Zip);
 
     // This will likely fail - encrypted ZIP support depends on the zip crate features
     // For now, we just verify it doesn't panic
@@ -70,7 +70,7 @@ fn test_nested_zip() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Zip)
+        .extract_with_format(&data, ArchiveFormat::Zip)
         .expect("Failed to extract nested.zip");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -90,7 +90,7 @@ fn test_deeply_nested_zip() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Zip)
+        .extract_with_format(&data, ArchiveFormat::Zip)
         .expect("Failed to extract deeply-nested.zip");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -107,7 +107,7 @@ fn test_deeply_nested_zip() {
 
     // Extract level 2
     let level2_files = extractor
-        .extract(&level2_zip.data, ArchiveFormat::Zip)
+        .extract_with_format(&level2_zip.data, ArchiveFormat::Zip)
         .expect("Failed to extract level2.zip");
 
     assert_contains_file(&level2_files, "level2.txt");
@@ -119,7 +119,7 @@ fn test_empty_zip() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Zip)
+        .extract_with_format(&data, ArchiveFormat::Zip)
         .expect("Failed to extract empty.zip");
 
     assert!(files.is_empty(), "Expected empty archive");
@@ -131,7 +131,7 @@ fn test_empty_dirs_zip() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Zip)
+        .extract_with_format(&data, ArchiveFormat::Zip)
         .expect("Failed to extract empty-dirs.zip");
 
     // Should contain directory entries
@@ -145,7 +145,7 @@ fn test_special_chars_zip() {
     let extractor = ArchiveExtractor::new();
 
     let files = extractor
-        .extract(&data, ArchiveFormat::Zip)
+        .extract_with_format(&data, ArchiveFormat::Zip)
         .expect("Failed to extract special-chars.zip");
 
     assert!(!files.is_empty(), "Expected non-empty archive");
@@ -169,7 +169,7 @@ fn test_potential_bomb_zip() {
         .with_max_file_size(5 * 1024 * 1024) // 5 MB limit
         .with_max_total_size(5 * 1024 * 1024);
 
-    let result = extractor.extract(&data, ArchiveFormat::Zip);
+    let result = extractor.extract_with_format(&data, ArchiveFormat::Zip);
 
     // Should fail due to size limits
     assert!(

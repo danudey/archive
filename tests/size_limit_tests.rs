@@ -12,7 +12,7 @@ fn test_max_file_size_limit() {
     // Set a very small file size limit
     let extractor = ArchiveExtractor::new().with_max_file_size(1024); // 1KB limit
 
-    let result = extractor.extract(&data, ArchiveFormat::Zip);
+    let result = extractor.extract_with_format(&data, ArchiveFormat::Zip);
 
     // Should fail because binary.bin is 10KB
     assert!(result.is_err(), "Expected to hit file size limit");
@@ -25,7 +25,7 @@ fn test_max_total_size_limit() {
     // Set a small total size limit
     let extractor = ArchiveExtractor::new().with_max_total_size(50 * 1024); // 50KB limit
 
-    let result = extractor.extract(&data, ArchiveFormat::Zip);
+    let result = extractor.extract_with_format(&data, ArchiveFormat::Zip);
 
     // Should fail because total is > 1MB
     assert!(result.is_err(), "Expected to hit total size limit");
